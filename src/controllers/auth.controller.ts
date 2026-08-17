@@ -5,13 +5,22 @@ import crypto from 'crypto';
 import { supabase } from '../config/supabase';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email.service';
 
-// --- Shared Registration Helper ---
-const handleRegistration = async (req: Request, res: Response, role: 'nurse' | 'doctor' | 'admin') => {
+// --- Unified Registration Endpoint ---
+export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, workEmail, staffId, password, confirmPassword } = req.body;
+    // Note: We now extract 'role' from the request body
+    const { firstName, lastName, workEmail, staffId, password, confirmPassword, role } = req.body;
 
-    if (!firstName || !lastName || !workEmail || !staffId || !password) {
-      res.status(400).json({ error: 'All fields are required.' });
+    if (!firstName || !lastName || !workEmail || !staffId || !password || !role) {
+      res.status(400).json({ error: 'All fields, including role, are required.' });
+      return;
+    }
+
+    // Validate role
+    const validRoles = ['nurse', 'doctor', 'admin'];
+    const assignedRole = role.toLowerCase().trim();
+    if (!validRoles.includes(assignedRole)) {
+      res.status(400).json({ error: 'Invalid role. Must be nurse, doctor, or admin.' });
       return;
     }
 
@@ -36,7 +45,7 @@ const handleRegistration = async (req: Request, res: Response, role: 'nurse' | '
         work_email: workEmail.toLowerCase().trim(),
         staff_id: staffId.toUpperCase().trim(),
         password_hash: passwordHash,
-        role: role,
+        role: assignedRole,
         is_verified: false,
         verification_code: verificationCode,
         verification_expires: verificationExpires
@@ -57,7 +66,7 @@ const handleRegistration = async (req: Request, res: Response, role: 'nurse' | '
     await sendVerificationEmail(data.work_email, verificationCode);
 
     res.status(201).json({
-      message: `${role.toUpperCase()} registered successfully. Please verify your email with the 6-digit code sent.`,
+      message: `${assignedRole.toUpperCase()} registered successfully. Please verify your email with the 6-digit code sent.`,
       role: data.role,
       email: data.work_email
     });
@@ -65,11 +74,6 @@ const handleRegistration = async (req: Request, res: Response, role: 'nurse' | '
     res.status(500).json({ error: 'Internal server error during registration.' });
   }
 };
-
-// --- Dedicated Registration Endpoints ---
-export const registerNurse = (req: Request, res: Response) => handleRegistration(req, res, 'nurse');
-export const registerDoctor = (req: Request, res: Response) => handleRegistration(req, res, 'doctor');
-export const registerAdmin = (req: Request, res: Response) => handleRegistration(req, res, 'admin');
 
 // --- Email Verification ---
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
@@ -162,21 +166,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       { expiresIn: '12h' } // 12-hour shift duration
     );
 
-    // Map role to target dashboard route for frontend routing
-    const dashboardRouteMap = {
-      nurse: '/nurse/dashboard',
-      doctor: '/doctor/dashboard',
-      admin: '/admin/dashboard'
-    };
-
+    // Return the specific JSON structure required by the frontend
     res.status(200).json({
       message: 'Login successful.',
       token,
-      redirectUrl: dashboardRouteMap[user.role as keyof typeof dashboardRouteMap],
       user: {
         id: user.id,
-        name: `${user.first_name} ${user.last_name}`,
-        email: user.work_email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        workEmail: user.work_email,
         staffId: user.staff_id,
         role: user.role
       }
@@ -197,14 +195,13 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
       .eq('work_email', workEmail.toLowerCase().trim())
       .single();
 
-    // Prevent account enumeration by returning success regardless
     if (!user) {
       res.status(200).json({ message: 'A reset link has been sent to your email.' });
       return;
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 30 * 60 * 1000); // 30 mins
+    const resetExpires = new Date(Date.now() + 30 * 60 * 1000); 
 
     await supabase
       .from('staff')

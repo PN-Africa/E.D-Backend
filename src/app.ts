@@ -1,8 +1,14 @@
-// src/app.ts
 import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
+import patientRoutes from './routes/patient.routes'; 
+import triageRoutes from './routes/triage.routes';
+import queueRoutes from './routes/queue.routes';
+import bedRoutes from './routes/bed.routes';
+import recordRoutes from './routes/record.routes';
+import notificationRoutes from './routes/notification.routes';
+import profileRoutes from './routes/profile.routes';
 
 dotenv.config();
 
@@ -12,10 +18,20 @@ app.use(cors());
 app.use(express.json());
 
 // Health check
-app.get('/', (_req, res) => res.json({ status: 'ok', version: '1.0.0' }));
+app.get('/', (_req, res) => res.json({ 
+    status: 'ok', version: '1.0.0' }
+));
 
 // Auth Endpoints Base Route
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/patients', patientRoutes);
+app.use('/api/v1/triage', triageRoutes);
+app.use('/api/v1/queue', queueRoutes);
+app.use('/api/v1/beds', bedRoutes);
+app.use('/api/v1/patients-records', recordRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/profile', profileRoutes);
+
 
 // 404 handler
 app.use((req, res) => {

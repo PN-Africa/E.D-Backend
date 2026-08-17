@@ -1,9 +1,6 @@
-// src/routes/auth.routes.ts
 import { Router } from 'express';
 import {
-  registerNurse,
-  registerDoctor,
-  registerAdmin,
+  register,
   verifyEmail,
   login,
   forgotPassword,
@@ -12,10 +9,8 @@ import {
 
 const router = Router();
 
-// Role-Specific Registration
-router.post('/register/nurse', registerNurse);
-router.post('/register/doctor', registerDoctor);
-router.post('/register/admin', registerAdmin);
+// Unified Registration
+router.post('/register', register);
 
 // Account Activation & Login
 router.post('/verify-email', verifyEmail);
