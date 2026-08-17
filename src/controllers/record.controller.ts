@@ -107,7 +107,7 @@ export const getPatientRecordDetails = async (req: AuthRequest, res: Response): 
     // Determine current/latest priority (from their most recent ED visit)
     // Supabase arrays aren't strictly ordered in joins unless specified, so we sort in JS
     const sortedVisits = Array.isArray(patient.ed_visits) 
-      ? patient.ed_visits.sort((a, b) => new Date(b.arrival_time).getTime() - new Date(a.arrival_time).getTime())
+      ? patient.ed_visits.sort((a: any, b: any) => new Date(b.arrival_time).getTime() - new Date(a.arrival_time).getTime())
       : [];
 
     const latestVisit = sortedVisits[0];
