@@ -228,15 +228,22 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 // --- Reset Password ---
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { workEmail, token, newPassword } = req.body;
+    const { token, newPassword } = req.body;
 
+    if (!token || !newPassword) {
+      res.status(400).json({ error: 'Token and new password are required.' });
+      return;
+    }
+
+    // Find the user entirely by the provided reset token
     const { data: user, error } = await supabase
       .from('staff')
-      .select('id, reset_token, reset_expires')
-      .eq('work_email', workEmail.toLowerCase().trim())
+      .select('id, reset_expires')
+      .eq('reset_token', token)
       .single();
 
-    if (error || !user || user.reset_token !== token || new Date() > new Date(user.reset_expires)) {
+    // Check if the token exists and has not expired
+    if (error || !user || new Date() > new Date(user.reset_expires)) {
       res.status(400).json({ error: 'Invalid or expired password reset token.' });
       return;
     }
@@ -244,6 +251,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     const salt = await bcrypt.genSalt(10);
     const newPasswordHash = await bcrypt.hash(newPassword, salt);
 
+    // Update password and clear the reset token
     await supabase
       .from('staff')
       .update({
