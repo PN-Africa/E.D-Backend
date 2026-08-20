@@ -78,16 +78,22 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 // --- Email Verification ---
 export const verifyEmail = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { workEmail, code } = req.body;
+    const { code } = req.body;
 
+    if (!code) {
+      res.status(400).json({ error: 'Verification code is required.' });
+      return;
+    }
+
+    // Find the user entirely by the provided 6-digit code
     const { data: user, error } = await supabase
       .from('staff')
       .select('*')
-      .eq('work_email', workEmail.toLowerCase().trim())
+      .eq('verification_code', code)
       .single();
 
     if (error || !user) {
-      res.status(404).json({ error: 'Staff account not found.' });
+      res.status(404).json({ error: 'Invalid verification code.' });
       return;
     }
 
@@ -96,11 +102,13 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    if (user.verification_code !== code || new Date() > new Date(user.verification_expires)) {
-      res.status(400).json({ error: 'Invalid or expired verification code.' });
+    // Check if the code has expired
+    if (new Date() > new Date(user.verification_expires)) {
+      res.status(400).json({ error: 'Verification code has expired. Please request a new one.' });
       return;
     }
 
+    // Clear the code and mark as verified
     await supabase
       .from('staff')
       .update({
